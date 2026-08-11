@@ -50,7 +50,7 @@ const TOKEN_CACHE_MAX = 1000;
 export default {
   async fetch(request, env, ctx) {
     try {
-      return await handleRequest(request, env);
+      return await handleRequest(request, env, ctx);
     } catch (err) {
       return new Response(`proxy error: ${err && err.message ? err.message : err}`, {
         status: 502,
@@ -60,7 +60,7 @@ export default {
   },
 };
 
-async function handleRequest(request, env) {
+async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
 
   if (request.method === 'OPTIONS') {
@@ -83,8 +83,16 @@ async function handleRequest(request, env) {
     return proxyAuth(request, url, env);
   }
 
+  if (url.pathname === '/api/pulls') {
+    return pullsApi(request, url, env);
+  }
+
+  if (url.pathname === '/stats') {
+    return statsPage(request, url, env);
+  }
+
   if (url.pathname === '/v2' || url.pathname === '/v2/' || url.pathname.startsWith('/v2/')) {
-    return proxyRegistry(request, url, env);
+    return proxyRegistry(request, url, env, ctx);
   }
 
   if (url.pathname === '/') {
@@ -125,7 +133,7 @@ async function proxyAuth(request, url, env) {
 }
 
 /** /v2/...：保护模式下校验 proxy token；用账号池鉴权上游（429 自动冷却换号）。 */
-async function proxyRegistry(request, url, env) {
+async function proxyRegistry(request, url, env, ctx) {
   const originalPath = url.pathname;
   const upstreamPath = rewriteOfficialImage(originalPath);
   const upstream = `https://${REGISTRY_HOST}${upstreamPath}${url.search}`;
@@ -149,6 +157,15 @@ async function proxyRegistry(request, url, env) {
     res = await fetchWithAccountPool(env, upstream, request.method, headers, accountScope);
   } else {
     res = await fetch(upstream, { method: request.method, headers, redirect: 'manual' });
+  }
+
+  if (shouldRecordPull(request, res, upstreamPath)) {
+    const imageRef = imageRefFromManifestPath(upstreamPath);
+    if (imageRef) {
+      const write = recordImagePull(env, imageRef, res.status);
+      if (ctx && ctx.waitUntil) ctx.waitUntil(write);
+      else await write;
+    }
   }
 
   return rewriteRegistryResponse(res, url);
@@ -392,6 +409,124 @@ function jsonError(status, code, message, extra = {}) {
 // ===== 重定向改写（上游 CDN 跳转改写回本代理，由本代理回源；客户端不直连 CDN）=====
 
 /** 仅允许 Docker 自有域名回源（防 SSRF / 被当开放代理）*/
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', ...corsBase() },
+  });
+}
+
+function statsAllowed(request, url, env) {
+  if (!env || !env.STATS_KEY) return true;
+  return extractAccessKey(request, url) === env.STATS_KEY;
+}
+
+async function pullsApi(request, url, env) {
+  if (!statsAllowed(request, url, env)) {
+    return jsonError(401, 'UNAUTHORIZED', 'stats key required');
+  }
+  const pulls = await getImagePulls(env, url);
+  return jsonResponse({ pulls });
+}
+
+async function statsPage(request, url, env) {
+  if (!statsAllowed(request, url, env)) {
+    return new Response('stats key required', { status: 401, headers: corsBase() });
+  }
+  const pulls = await getImagePulls(env, url);
+  return htmlResponse(statsHtml(pulls));
+}
+
+async function getImagePulls(env, url) {
+  if (!env || !env.DB) return [];
+  const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 500);
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT image, tag, pull_count, last_status, first_pulled_at, last_pulled_at FROM image_pulls ORDER BY last_pulled_at DESC LIMIT ?1'
+    )
+      .bind(limit)
+      .all();
+    return results || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function shouldRecordPull(request, res, upstreamPath) {
+  return request.method === 'GET' && res && res.status >= 200 && res.status < 400 && !!imageRefFromManifestPath(upstreamPath);
+}
+
+function imageRefFromManifestPath(pathname) {
+  const m = pathname.match(/^\/v2\/(.+)\/manifests\/([^/]+)$/);
+  if (!m) return null;
+  return { image: m[1], tag: decodeURIComponent(m[2]) };
+}
+
+function recordImagePull(env, imageRef, status) {
+  if (!env || !env.DB || !imageRef) return Promise.resolve();
+  const now = Date.now();
+  return env.DB.prepare(
+    `INSERT INTO image_pulls (image, tag, pull_count, first_pulled_at, last_pulled_at, last_status)
+     VALUES (?1, ?2, 1, ?3, ?3, ?4)
+     ON CONFLICT(image, tag) DO UPDATE SET
+       pull_count = pull_count + 1,
+       last_pulled_at = excluded.last_pulled_at,
+       last_status = excluded.last_status`
+  )
+    .bind(imageRef.image, imageRef.tag, now, status)
+    .run()
+    .catch(() => {});
+}
+
+function statsHtml(pulls) {
+  const rows = pulls
+    .map((p) => {
+      const image = escapeHtml(`${p.image}:${p.tag}`);
+      const last = p.last_pulled_at ? new Date(Number(p.last_pulled_at)).toISOString() : '-';
+      return `<tr><td>${image}</td><td>${p.pull_count || 0}</td><td>${p.last_status || '-'}</td><td>${escapeHtml(last)}</td></tr>`;
+    })
+    .join('');
+  const body = rows || '<tr><td colspan="4" class="empty">No pulls recorded yet.</td></tr>';
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker Pull Stats</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f7f8fb;color:#182033;margin:0;padding:32px}
+  main{max-width:980px;margin:0 auto}
+  h1{font-size:1.5rem;margin:0 0 18px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d9deea}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid #e7ebf3;font-size:.92rem}
+  th{background:#eef2f8;color:#3c465c;font-weight:650}
+  .empty{text-align:center;color:#71809a}
+  .meta{color:#71809a;margin:0 0 16px;font-size:.9rem}
+  code{background:#eef2f8;padding:2px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Docker Pull Stats</h1>
+  <p class="meta">JSON endpoint: <code>/api/pulls</code></p>
+  <table>
+    <thead><tr><th>Image</th><th>Pulls</th><th>Last status</th><th>Last pulled at</th></tr></thead>
+    <tbody>${body}</tbody>
+  </table>
+</main>
+</body>
+</html>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function isAllowedUpstream(host) {
   return host.endsWith('.docker.com') || host.endsWith('.docker.io');
 }
