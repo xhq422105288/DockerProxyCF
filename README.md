@@ -16,14 +16,10 @@
 <p align="center">
   <a href="https://developers.cloudflare.com/workers/"><img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflareworkers&logoColor=white"></a>
   <a href="https://developers.cloudflare.com/d1/"><img alt="Cloudflare D1" src="https://img.shields.io/badge/D1-Database-F38020?logo=cloudflare&logoColor=white"></a>
-  <a href="https://github.com/AinzRimuru/DockerProxyCF/actions/workflows/deploy.yml"><img alt="Deploy" src="https://github.com/AinzRimuru/DockerProxyCF/actions/workflows/deploy.yml/badge.svg?branch=deploy"></a>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/AinzRimuru/DockerProxyCF?color=blue"></a>
-  <a href="https://github.com/AinzRimuru/DockerProxyCF"><img alt="Stars" src="https://img.shields.io/github/stars/AinzRimuru/DockerProxyCF?style=social"></a>
-  <a href="https://github.com/AinzRimuru/DockerProxyCF/commits"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/AinzRimuru/DockerProxyCF"></a>
-</p>
-
-<p align="center">
-  🎮 <strong>在线演示</strong>：<a href="https://docker.rimuru.cc">https://docker.rimuru.cc</a>　·　<code>docker pull docker.rimuru.cc/alpine</code>
+  <a href="https://github.com/xhq422105288/DockerProxyCF/actions/workflows/deploy.yml"><img alt="Deploy" src="https://github.com/xhq422105288/DockerProxyCF/actions/workflows/deploy.yml/badge.svg?branch=main"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/xhq422105288/DockerProxyCF?color=blue"></a>
+  <a href="https://github.com/xhq422105288/DockerProxyCF"><img alt="Stars" src="https://img.shields.io/github/stars/xhq422105288/DockerProxyCF?style=social"></a>
+  <a href="https://github.com/xhq422105288/DockerProxyCF/commits"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/xhq422105288/DockerProxyCF"></a>
 </p>
 
 > 仅支持 `docker pull`（GET/HEAD），不支持 push 等写操作。
@@ -53,7 +49,7 @@
 
 ## 快速开始 Quick Start
 
-**直接拉取**（把 `<你的域名>` 换成你自己的域名；也可先用演示站点 `docker.rimuru.cc` 体验）：
+**直接拉取**（把 `<你的域名>` 换成你自己的域名）：
 
 ```bash
 # 官方镜像（library/ 可省略）
@@ -242,10 +238,10 @@ Cloudflare Dashboard → Workers & Pages → 你的 Worker → Settings → Doma
 <!-- 图表由 .github/workflows/star-history.yml 在 CI 中渲染并提交到独立的 `star-history` 分支；
      main 分支不存放任何图表产物，文件名固定，由 workflow 定期覆盖刷新。
      因 api.star-history.com 托管 API 自 2026-06-30 起失效，故改用自托管静态文件。 -->
-<a href="https://www.star-history.com/?repos=AinzRimuru/DockerProxyCF&type=date">
+<a href="https://www.star-history.com/?repos=xhq422105288/DockerProxyCF&type=date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/AinzRimuru/DockerProxyCF@star-history/assets/star-history/star-history-dark.svg">
-   <img alt="Star History Chart" src="https://cdn.jsdelivr.net/gh/AinzRimuru/DockerProxyCF@star-history/assets/star-history/star-history-light.svg">
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=xhq422105288/DockerProxyCF&type=Date&theme=dark">
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=xhq422105288/DockerProxyCF&type=Date">
  </picture>
 </a>
 <!-- star-history:end -->
