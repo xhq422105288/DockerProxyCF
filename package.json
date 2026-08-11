@@ -8,8 +8,16 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "npm run db:migrations:apply && wrangler deploy",
+    "db:migrations:apply": "wrangler d1 migrations apply DB --remote",
     "tail": "wrangler tail"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "D1 database used to store Docker Hub account pool metadata. The deploy flow provisions and binds it automatically."
+      }
+    }
   },
   "devDependencies": {
     "wrangler": "^4.24.0"

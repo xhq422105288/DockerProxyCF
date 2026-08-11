@@ -1,15 +1,16 @@
 {
-  // Cloudflare Worker 配置：Docker Hub pull-only 反向代理
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "docker-hub-proxy",
-  "main": "src/index.js",
-  "compatibility_date": "2025-07-01",
-  "compatibility_flags": [],
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "docker-hub-accounts",
-      "database_id": "<your-d1-database-id>" // 真实 id 在 deploy 分支（账号相关，不入 main）
-    }
-  ]
+	// Cloudflare Worker 配置：Docker Hub pull-only 反向代理
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "docker-hub-proxy",
+	"main": "src/index.js",
+	"compatibility_date": "2025-07-01",
+	"compatibility_flags": [],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "docker-hub-accounts",
+			"migrations_dir": "migrations",
+			"remote": true
+		}
+	]
 }

@@ -6,6 +6,14 @@
 </p>
 
 <p align="center">
+  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/xhq422105288/DockerProxyCF">
+    <img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare">
+  </a>
+</p>
+
+> One-click deploy uses Cloudflare's deploy button. It reads `wrangler.jsonc`, provisions the Worker resources, and runs `npm run deploy`, which applies D1 migrations before `wrangler deploy`.
+
+<p align="center">
   <a href="https://developers.cloudflare.com/workers/"><img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflareworkers&logoColor=white"></a>
   <a href="https://developers.cloudflare.com/d1/"><img alt="Cloudflare D1" src="https://img.shields.io/badge/D1-Database-F38020?logo=cloudflare&logoColor=white"></a>
   <a href="https://github.com/AinzRimuru/DockerProxyCF/actions/workflows/deploy.yml"><img alt="Deploy" src="https://github.com/AinzRimuru/DockerProxyCF/actions/workflows/deploy.yml/badge.svg?branch=deploy"></a>
@@ -102,7 +110,7 @@ flowchart LR
 ```bash
 npm install
 npx wrangler login        # 首次需要登录
-npx wrangler deploy
+npm run deploy
 ```
 
 部署后得到 `https://docker-hub-proxy.<你的子域>.workers.dev`，也可绑定自定义域名（Workers → Settings → Domains & Routes）。

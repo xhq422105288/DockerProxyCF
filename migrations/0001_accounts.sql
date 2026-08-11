@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS accounts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  rate_limited_until INTEGER DEFAULT 0,
+  last_used INTEGER DEFAULT 0,
+  limited_count INTEGER NOT NULL DEFAULT 0
+);
