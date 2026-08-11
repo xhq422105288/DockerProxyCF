@@ -697,6 +697,9 @@ function infoPage(host) {
   .star{display:inline-flex;align-items:center;gap:7px;background:#24292f;color:#fff;text-decoration:none;padding:8px 14px;border-radius:8px;font-size:.9rem;border:1px solid #3b424c;box-shadow:0 2px 8px rgba(0,0,0,.25);transition:transform .15s,background .15s}
   .star:hover{background:#2f363d;transform:translateY(-1px)}
   .star svg{fill:#facc15}
+  .links{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 1.4rem}
+  .links a{display:inline-flex;align-items:center;background:#16213d;color:#d9e6ff;text-decoration:none;border:1px solid #2a3a63;border-radius:8px;padding:8px 12px;font-size:.9rem}
+  .links a:hover{background:#1d2b50}
   .hint{color:#9aa4bf;font-size:.82rem;margin:.6rem 0 1.4rem}
   .hint a{color:#9cc2ff}
   .thanks{color:#9aa4bf;font-size:.82rem;margin:1.2rem 0 0}
@@ -714,6 +717,10 @@ function infoPage(host) {
       Star on GitHub
     </a>
     <p class="hint">如果对你有帮助，欢迎到 <a href="https://github.com/AinzRimuru/DockerProxyCF" target="_blank" rel="noopener">AinzRimuru/DockerProxyCF</a> 点个 ⭐ Star 支持一下～</p>
+    <div class="links">
+      <a href="/stats">Pull stats</a>
+      <a href="/api/pulls">Pull stats JSON</a>
+    </div>
     <pre><code>${examples}</code></pre>
     <p class="sub">也可作为 registry mirror 写入 daemon.json：</p>
     <pre><code>{
