@@ -192,7 +192,7 @@ async function proxyRegistry(request, url, env, ctx) {
     }
   }
 
-  return rewriteRegistryResponse(res, url);
+  return rewriteRegistryResponse(res, url, registry.host);
 }
 
 function resolveRegistryTarget(pathname) {
@@ -641,9 +641,9 @@ function parseRedirectPath(pathname) {
 }
 
 /** 把上游 Location 改写为 <代理>/redirect_to_<host><path>?<query> */
-function rewriteLocation(location, proxyOrigin) {
+function rewriteLocation(location, proxyOrigin, fallbackHost = '') {
   try {
-    const u = new URL(location);
+    const u = fallbackHost ? new URL(location, `https://${fallbackHost}`) : new URL(location);
     if (!isAllowedUpstream(u.hostname)) return null;
     return `${proxyOrigin}/${REDIRECT_PREFIX}${u.hostname}${u.pathname}${u.search}`;
   } catch (e) {
@@ -671,7 +671,7 @@ async function handleCdnRedirect(request, url, env) {
   if ([301, 302, 303, 307, 308].includes(res.status)) {
     const loc = h.get('location');
     if (loc) {
-      const newLoc = rewriteLocation(loc, url.origin);
+      const newLoc = rewriteLocation(loc, url.origin, parsed.host);
       if (newLoc) h.set('location', newLoc);
     }
   }
@@ -713,7 +713,7 @@ function stripRevealingHeaders(headers) {
 }
 
 /** 整理 registry 响应：剥除泄露头、改写 realm、补 v2 头、加 CORS。保留 content-length。 */
-function rewriteRegistryResponse(res, url) {
+function rewriteRegistryResponse(res, url, upstreamHost) {
   const headers = new Headers(res.headers);
   stripRevealingHeaders(headers);
 
@@ -721,7 +721,7 @@ function rewriteRegistryResponse(res, url) {
   if ([301, 302, 303, 307, 308].includes(res.status)) {
     const loc = headers.get('location');
     if (loc) {
-      const newLoc = rewriteLocation(loc, url.origin);
+      const newLoc = rewriteLocation(loc, url.origin, upstreamHost);
       if (newLoc) headers.set('location', newLoc);
     }
   }
