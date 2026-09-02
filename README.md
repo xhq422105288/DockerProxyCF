@@ -1,8 +1,8 @@
 <h1 align="center">🐳 docker-hub-proxy</h1>
 
 <p align="center">
-  基于 Cloudflare Worker 的 Docker Hub <strong>pull-only</strong> 反向代理<br/>
-  A pull-only Docker Hub reverse proxy on Cloudflare Workers — pull public images through your own domain.
+  基于 Cloudflare Worker 的 Docker Hub / GCR <strong>pull-only</strong> 反向代理<br/>
+  A pull-only Docker Hub and GCR reverse proxy on Cloudflare Workers — pull public images through your own domain.
 </p>
 
 <p align="center">
@@ -44,7 +44,8 @@
 - 🏷️ **自动补 `library/`** —— `<域名>/nginx` 等价于 `library/nginx`，与官方命名空间一致。
 - 🔐 **账号池 + 自动冷却** —— D1 存多账号，按 `last_used` 轮询选号；单号触发 429 自动冷却 6h 并换号。
 - 🛡️ **token 保护** —— `/token` 只签发 proxy token（HMAC-SHA256 JWT），真实账号 token 绝不外发；可选 `ACCESS_KEY` 访问控制。
-- 🚫 **防泄漏 / 防 SSRF** —— 剥离 `docker-ratelimit-source` 等泄露头，回源仅放行 `*.docker.com` / `*.docker.io`。
+- 🌐 **GCR 公共镜像代理** —— 使用 `<域名>/gcr.io/...` 拉取 `gcr.io` 公共镜像，Worker 自动处理匿名 Bearer token。
+- 🚫 **防泄漏 / 防 SSRF** —— 剥离 `docker-ratelimit-source` 等泄露头，回源仅放行 Docker Hub / GCR 相关上游域名。
 - ☁️ **灵活部署** —— Wrangler CLI 或 Cloudflare Pages 单文件；原生支持 `registry-mirror`。
 
 ## 快速开始 Quick Start
@@ -58,6 +59,10 @@ docker pull <你的域名>/library/nginx:1.27
 
 # 用户仓库
 docker pull <你的域名>/user/repo:tag
+
+# GCR 公共镜像
+docker pull <你的域名>/gcr.io/google-samples/hello-app:1.0
+docker pull <你的域名>/gcr.io/distroless/base-debian12:nonroot
 ```
 
 **作为 registry mirror（推荐，无需改镜像名）：** 编辑 `/etc/docker/daemon.json`（Docker Desktop 在 Settings → Docker Engine）：
@@ -75,7 +80,7 @@ sudo systemctl restart docker        # Linux
 # macOS / Windows：重启 Docker Desktop
 ```
 
-之后 `docker pull nginx` 会自动走镜像。
+之后 `docker pull nginx` 会自动走 Docker Hub 镜像。GCR 仍需显式使用 `<你的域名>/gcr.io/...` 前缀。
 
 ## 界面预览 Preview
 
@@ -89,13 +94,14 @@ sudo systemctl restart docker        # Linux
 flowchart LR
     C([🐳 docker client]) -->|"GET /v2/..."| W["Cloudflare Worker<br/>你的域名"]
     W -->|manifests · tags| R[("registry-1<br/>.docker.io")]
+    W -->|gcr.io prefix| G[("gcr.io")]
     W -->|/token| A[("auth.docker.io")]
     W -.->|blob 307 改写 Location| CDN[("CDN<br/>*.docker.com")]
     CDN -.->|由 Worker 统一回源| W
     W -->|镜像数据| C
 ```
 
-- **manifests / tags / token**：小文件，由 Worker 直接转发。
+- **manifests / tags / token**：小文件，由 Worker 直接转发；GCR 公共镜像的匿名 Bearer token 由 Worker 自动换取。
 - **blob**：registry 返回 307 到 CDN，Worker 把 `Location` 改写成 `/redirect_to_<cdn>/...` 由自己回源，客户端不直连 CDN。
 - **鉴权**：把 401 的 `WWW-Authenticate` realm 指回 `/token`，客户端的 token 流程自然走代理。
 
@@ -216,15 +222,16 @@ Cloudflare Dashboard → Workers & Pages → 你的 Worker → Settings → Doma
 - registry mirror：写入 `daemon.json` 后 `docker pull nginx` 自动走代理，无需改镜像名（推荐）。
 
 **Q：凭据安全吗？**
-账号以 Worker 加密 secret 存储、不进源码；启用 token 保护后真实 token 绝不外发；响应会剥离 `docker-ratelimit-source` 等泄露头；回源仅放行 `*.docker.com` / `*.docker.io` 防 SSRF。
+账号以 Worker 加密 secret 存储、不进源码；启用 token 保护后真实 token 绝不外发；响应会剥离 `docker-ratelimit-source` 等泄露头；回源仅放行 Docker Hub / GCR 相关上游域名防 SSRF。
 
 **Q：能代理其它 registry（gcr / quay / ghcr）吗？**
-不能。上游固定 `registry-1.docker.io`，仅代理 Docker Hub。
+当前支持 Docker Hub 和 `gcr.io` 公共镜像。Docker Hub 默认路径不变，GCR 使用 `<域名>/gcr.io/...` 前缀；`quay.io` / `ghcr.io` 暂未接入。
 
 ## 限制与说明 Limitations
 
 - **仅 pull**：所有写操作（push / delete 等）返回 `405`。
-- **仅代理 Docker Hub**：上游固定 `registry-1.docker.io`。
+- **已支持上游**：Docker Hub 默认路径；`gcr.io` 公共镜像通过 `<域名>/gcr.io/...` 前缀访问。
+- **GCR 私有镜像**：当前未接入 Google 服务账号或私有仓库鉴权，主要面向公共镜像拉取。
 - **子请求数**：blob 回源经 Worker 转发，manifest / token 走 Worker；Worker Free 计划每次请求 50 个子请求上限，对单次 pull 足够。
 - **额度共享**：账号池 / 单账号额度被所有使用者共享，建议用专用 Access Token 并在泄露后及时轮换。
 
